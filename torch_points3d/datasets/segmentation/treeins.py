@@ -13,6 +13,7 @@ from torch_geometric.data import DataLoader
 import torch_geometric.transforms as T
 import logging
 from sklearn.neighbors import NearestNeighbors, KDTree
+import tqdm
 from tqdm.auto import tqdm as tq
 import csv
 import pandas as pd
@@ -56,11 +57,20 @@ def object_name_to_label(object_class):
     object_label = OBJECT_LABEL.get(object_class, OBJECT_LABEL["unclassified"])
     return object_label
 
-def read_treeins_format(train_file, label_out=True, verbose=False, debug=False):
+def read_treeins_format(train_file, 
+                        label_out=True, 
+                        ply_format='treeins',
+                        verbose=False, 
+                        debug=False):
     """extract data from a treeins file"""
     raw_path = train_file
-    data = read_ply(raw_path)
-    xyz = np.vstack((data['x'], data['y'], data['z'])).astype(np.float32).T
+    data = read_ply(raw_path, ply_format=ply_format)
+    # xyz = np.vstack((data['x'], data['y'], data['z'])).T
+    # TODO: Questionize whether it is OK to convert np.float32 or not.
+    # TODO: because assume network input's scalar type is float32.
+    # IMPL: implement assert x == y == z
+    if data['x'].dtype == np.float64:
+        xyz = np.vstack((data['x'], data['y'], data['z'])).astype(np.float32).T
     if not label_out:
         return xyz
     # @Treeins: read in semantic segmentation labels (0: unclassified, 1: non-tree, 2: tree) and change them to
@@ -77,6 +87,7 @@ def read_treeins_format(train_file, label_out=True, verbose=False, debug=False):
 
 
 def to_ply(pos, label, file):
+    # treeinsの場合はf4, fastlabelの場合はf8
     assert len(label.shape) == 1
     assert pos.shape[0] == label.shape[0]
     pos = np.asarray(pos)
@@ -308,9 +319,16 @@ class TreeinsOriginalFused(InMemoryDataset):
             for area_num, file_path in enumerate(input_ply_files):
                 area_name = os.path.split(file_path)[-1]
                 xyz, semantic_labels, instance_labels = read_treeins_format(
-                    file_path, label_out=True, verbose=self.verbose, debug=self.debug
+                    file_path, 
+                    label_out=True, 
+                    ply_format='fastlabel',
+                    verbose=self.verbose, 
+                    debug=self.debug
                 )
-
+                # TODO: Farthest Downsampling
+                # TODO: Point to float32
+                xyz = xyz.to(torch.float32)
+                
                 data = Data(pos=xyz, y=semantic_labels)
                 data.validation_set = False
                 data.test_set = False
@@ -327,10 +345,16 @@ class TreeinsOriginalFused(InMemoryDataset):
 
                 if self.pre_filter is not None and not self.pre_filter(data):
                     continue
+                print("==========================================")
                 print("area_num:")
                 print(area_num)
                 print("data:")  #Data(pos=[30033430, 3], validation_set=False, y=[30033430])
+                print(f"Point shape : {data['pos'].shape}")
+                print(f"Point scalar type : {data['pos'].dtype}")
+                print(f"semantic_labels : [{data['y'].min()}, {data['y'].max()}]")
+                print(f"instance_labels : [{data['instance_labels'].min()}, {data['instance_labels'].max()}]")
                 print(data)
+                print("==========================================")
                 data_list[area_num].append(data)
             print("data_list")
             print(data_list)
@@ -409,6 +433,11 @@ class TreeinsOriginalFused(InMemoryDataset):
                 xyz, semantic_labels, instance_labels = read_treeins_format(
                     file_path, label_out=True, verbose=self.verbose, debug=self.debug
                 )
+                # TODO： downsampling
+                # TODO: float64 to float32
+                xyz = xyz.to(torch.float32)
+                
+                
                 data = Data(pos=xyz, y=semantic_labels)
                 if self.keep_instance:
                     data.instance_labels = instance_labels
@@ -576,7 +605,10 @@ class TreeinsCylinder(TreeinsSphere):
             if (torch.any(cylinder_area.y==1)).item(): #@Treeins: ensure that cylinder_area contains at least one point labelled as tree
                 return cylinder_area
 
-    def _load_data(self, path):
+    def _load_data(self, 
+                   path # '/workspace/data_fastlabel/treeinsfused/processed_0.2/test.pt'
+                   ):
+        print(f'Loading..............................')
         self._datas = torch.load(path)
         if not isinstance(self._datas, list):
             self._datas = [self._datas]
@@ -604,7 +636,9 @@ class TreeinsCylinder(TreeinsSphere):
             grid_sampler = cT.GridCylinderSampling(self._radius, self._radius, center=False)
             self._test_spheres = []
             self._num_spheres = []
-            for i, data in enumerate(self._datas): #for each test data file's data
+            
+            print(f"Grid sampling..........................")
+            for i, data in tqdm.tqdm(enumerate(self._datas)): #for each test data file's data
                 test_spheres = grid_sampler(data)
                 # @Treeins: self._test_spheres is list of grid-cylinder-sampled data from all test data
                 # -> data from different data files in the same list without separation

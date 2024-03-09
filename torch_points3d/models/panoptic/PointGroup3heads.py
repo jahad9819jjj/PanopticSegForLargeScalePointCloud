@@ -115,16 +115,22 @@ class PointGroup3heads(BaseModel):
         if self.use_score_net: # and epoch > self.opt.prepare_epoch:
             if epoch > self.opt.prepare_epoch:   # Active by default epoch > -1: #
                 if self.opt.cluster_type == 1:
+                    print('Cluster type 1')
                     all_clusters, cluster_type = self._cluster(semantic_logits, offset_logits)
                 elif self.opt.cluster_type == 2:
+                    print('Cluster type 2')
                     all_clusters, cluster_type = self._cluster2(semantic_logits, offset_logits)
                 elif self.opt.cluster_type == 3:
+                    print('Cluster type 3')
                     all_clusters, cluster_type = self._cluster3(semantic_logits, embed_logits)
                 elif self.opt.cluster_type == 4:
+                    print('Cluster type 4')
                     all_clusters, cluster_type = self._cluster4(semantic_logits, embed_logits)
                 elif self.opt.cluster_type == 5:
+                    print('Cluster type 5')
                     all_clusters, cluster_type = self._cluster5(semantic_logits, offset_logits, embed_logits)
                 elif self.opt.cluster_type == 6:
+                    print('Cluster type 6')
                     all_clusters, cluster_type = self._cluster6(semantic_logits, offset_logits, embed_logits)
                 if len(all_clusters):
                     cluster_scores, mask_scores = self._compute_score(epoch, all_clusters, backbone_features, semantic_logits)
@@ -302,17 +308,19 @@ class PointGroup3heads(BaseModel):
             nsample=200,
             min_cluster_size=10
         )
+        print(f'Cluster pos number : {len(clusters_pos)}') # 13
         ###### Cluster using embedding without predicted semantic labels ######
         #remove stuff points
         N = embed_logits.shape[0]  #.cpu().detach().numpy().shape[0]
         ind = torch.arange(0, N)
-        unique_predicted_labels = torch.unique(predicted_labels) #np.unique(predicted_labels)
-        ignore_labels=self._stuff_classes.to(self.device)  #.cpu().detach().numpy()
+        unique_predicted_labels = torch.unique(predicted_labels) #np.unique(predicted_labels) # [0,1,4,5,6,7,8]
+        ignore_labels=self._stuff_classes.to(self.device)  #.cpu().detach().numpy() #[-1,0,1,5]
         label_mask = torch.ones(predicted_labels.shape[0], dtype=torch.bool) #.cpu().detach().numpy()
         for l in unique_predicted_labels:
+            print(f'Unique predicted label : {l}')
             if l in ignore_labels:
                 # Build clusters for a given label (ignore other points)
-                label_mask_l = predicted_labels == l
+                label_mask_l = predicted_labels == l # predicted_labels.shape = 37114
                 label_mask[label_mask_l] = False
         local_ind = ind[label_mask]
         label_batch = self.input.batch[label_mask]  #.cpu().detach().numpy()

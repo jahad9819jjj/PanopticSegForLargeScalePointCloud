@@ -31,9 +31,9 @@ OBJECT_COLOR = np.asarray(
     ]
 )
 
-VALID_CLASS_IDS = [0, 1]
-SemIDforInstance = np.array([
-                                1])  # only class tree/1 is is a semantic class with instances, namely tree instances. In contrast, semantic class non-tree is a stuff class.
+VALID_CLASS_IDS = list(CLASSES_INV.keys())
+# maybe 0?
+SemIDforInstance = np.array([1])  # only class tree/1 is is a semantic class with instances, namely tree instances. In contrast, semantic class non-tree is a stuff class.
 
 
 ################################### UTILS #######################################
@@ -372,8 +372,8 @@ def final_eval(pre_sem, pre_ins_embed, pre_ins_offset, gt_sem, gt_ins, output_fi
     ################################################################
     for i_sem in ins_classcount:
         ###### metrics for offset ######
-        tp = np.asarray(tpsins[i_sem]).astype(np.float)
-        fp = np.asarray(fpsins[i_sem]).astype(np.float)
+        tp = np.asarray(tpsins[i_sem]).astype(np.float32)
+        fp = np.asarray(fpsins[i_sem]).astype(np.float32)
         tp = np.sum(tp)
         fp = np.sum(fp)
         # recall and precision
@@ -398,8 +398,8 @@ def final_eval(pre_sem, pre_ins_embed, pre_ins_offset, gt_sem, gt_ins, output_fi
         PQStar[i_sem] = PQ[i_sem]
 
         ###### metrics for embedding ######
-        tp = np.asarray(tpsins_embed[i_sem]).astype(np.float)
-        fp = np.asarray(fpsins_embed[i_sem]).astype(np.float)
+        tp = np.asarray(tpsins_embed[i_sem]).astype(np.float32)
+        fp = np.asarray(fpsins_embed[i_sem]).astype(np.float32)
         tp = np.sum(tp)
         fp = np.sum(fp)
         # recall and precision
@@ -511,7 +511,7 @@ def final_eval(pre_sem, pre_ins_embed, pre_ins_offset, gt_sem, gt_ins, output_fi
 
 
 class PanopticTreeinsBase:
-    INSTANCE_CLASSES = CLASSES_INV.keys()
+    # INSTANCE_CLASSES = CLASSES_INV.keys()
     NUM_MAX_OBJECTS = 80  # @Treeins: increased int because we had more number of instances in data files from the Treeins data set
 
     STUFFCLASSES = torch.tensor([i for i in VALID_CLASS_IDS if i not in SemIDforInstance])

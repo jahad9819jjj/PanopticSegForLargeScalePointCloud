@@ -16,7 +16,7 @@ def set_extra_labels(data, instance_classes, num_max_objects):
     # compute votes *AFTER* augmentation
     instances = np.unique(data.instance_labels)
     centers = []
-    point_votes = torch.zeros([num_points, 3])
+    point_votes = torch.zeros([num_points, 3], dtype=data.pos.dtype)
     instance_labels = torch.zeros(num_points, dtype=torch.long)
     instance_idx = 1
     for i_instance in instances:

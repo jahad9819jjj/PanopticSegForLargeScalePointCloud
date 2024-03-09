@@ -448,7 +448,8 @@ class PanopticTracker(SegmentationTracker):
                             all_pre_ins[new_not_old_idx] = max_iou_ii_oldlabel
                         else:
                             all_pre_ins[new_not_old_idx] = max_instance+1
-                            max_instance = max_instance+1     
+                            max_instance = max_instance+1
+        # これが推定した点群
         return torch.from_numpy(all_pre_ins), max_instance
     
     def non_max_suppression(self, ious, scores, threshold):
@@ -534,6 +535,7 @@ class PanopticTracker(SegmentationTracker):
         return all_clusters, all_scores
 
     def finalise(self, full_res=False, vote_miou=True, ply_output="", track_instances=True, **kwargs):
+        # eval.pyを実行するとここは通る.
         per_class_iou = self._confusion_matrix.get_intersection_union_per_class()[0]
         self._iou_per_class = {k: v for k, v in enumerate(per_class_iou)}
         
@@ -571,17 +573,19 @@ class PanopticTracker(SegmentationTracker):
                 "vote1regularfull.ply",
             )'''
             #semantic prediction and GT label full cloud (for final evaluation)
-            #self._dataset.to_eval_ply(
-            #    self._test_area.pos,
-            #    torch.argmax(full_pred, 1).numpy(), #[0, ..]
-            #    self._test_area.y,   #[-1, ...]
-            #    "Semantic_results_forEval.ply",
-            #)
+            # maybe point cloud scale is normalized
+            self._dataset.to_eval_ply(
+               self._test_area.pos,
+               torch.argmax(full_pred, 1).numpy(), #[0, ..]
+               self._test_area.y,   #[-1, ...]
+               "Semantic_results_forEval.ply",
+            )
             #instance
             has_prediction = self._test_area.ins_pre != -1
-            #full_ins_pred_embed = knn_interpolate(
-            #torch.reshape(self._test_area.ins_pre_embed[has_prediction], (-1,1)), self._test_area.pos[has_prediction], self._test_area.pos, k=1,
-            #)
+            full_ins_pred_embed = knn_interpolate(
+            torch.reshape(self._test_area.ins_pre_embed[has_prediction], (-1,1)), 
+            self._test_area.pos[has_prediction], self._test_area.pos, k=1,
+            )
             
             #instance prediction with color for subsampled cloud
             self._dataset.to_ins_ply(
@@ -632,12 +636,16 @@ class PanopticTracker(SegmentationTracker):
                 if size_l<10:
                     full_ins_pred[label_mask_l] = -1
             
-            '''self._dataset.to_eval_ply(
-                self._test_area.pos,
-                full_ins_pred_embed.numpy(),  #[-1, ...]
-                self._test_area.instance_labels,  #[0, ..]
-                "Instance_Embed_results_forEval.ply",
-            )
+            # # '''
+            # self._dataset.to_eval_ply(
+            #     self._test_area.pos,
+            #     full_ins_pred_embed.numpy(),  #[-1, ...]
+            #     self._test_area.instance_labels,  #[0, ..]
+            #     "Instance_Embed_results_forEval.ply",
+            # )
+            # # '''
+            
+            '''
             self._dataset.to_eval_ply(
                 self._test_area.pos,
                 full_ins_pred_offset.numpy(),
@@ -839,8 +847,8 @@ class PanopticTracker(SegmentationTracker):
             ###### metrics for offset ######
             if not tpsins[i_sem] or not fpsins[i_sem]:
                 continue
-            tp = np.asarray(tpsins[i_sem]).astype(np.float)
-            fp = np.asarray(fpsins[i_sem]).astype(np.float)
+            tp = np.asarray(tpsins[i_sem]).astype(np.float64)
+            fp = np.asarray(fpsins[i_sem]).astype(np.float64)
             tp = np.sum(tp)
             fp = np.sum(fp)
             # recall and precision

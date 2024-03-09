@@ -1,4 +1,5 @@
 import os
+# os.environ['CUDA_VISIBLE_DEVICES'] = '0,1'
 import copy
 import torch
 torch.multiprocessing.set_sharing_strategy('file_system')
@@ -61,6 +62,7 @@ class Trainer:
         if self._cfg.training.cuda > -1 and torch.cuda.is_available():
             device = "cuda"
             torch.cuda.set_device(self._cfg.training.cuda)
+            # os.environ['CUDA_VISIBLE_DEVICES'] = '0,1'
         else:
             device = "cpu"
         self._device = torch.device(device)
@@ -87,6 +89,7 @@ class Trainer:
 
         # Create model and datasets
         if not self._checkpoint.is_empty:
+            # HERE
             self._dataset: BaseDataset = instantiate_dataset(self._checkpoint.data_config)
             self._model: BaseModel = self._checkpoint.create_model(
                 self._dataset, weight_name=self._cfg.training.weight_name
@@ -177,6 +180,7 @@ class Trainer:
                 self._test_epoch(epoch, "val")
 
         if self._dataset.has_test_loaders:
+            # HERE
             if not stage_name or stage_name == "test":
                 self._test_epoch(epoch, "test")
 
@@ -260,7 +264,8 @@ class Trainer:
                             with torch.cuda.amp.autocast(enabled=self._model.is_mixed_precision()):
                                 self._model.forward(epoch=epoch, is_training = self._is_training)
                             self._tracker.track(self._model, data=data, **self.tracker_options)
-                        tq_loader.set_postfix(**self._tracker.get_metrics(), color=COLORS.TEST_COLOR)
+                        # compute_eval is commented out so that this affects.
+                        # tq_loader.set_postfix(**self._tracker.get_metrics(), color=COLORS.TEST_COLOR)
 
                         if self.has_visualization and self._visualizer.is_active:
                             self._visualizer.save_visuals(self._model.get_current_visuals())

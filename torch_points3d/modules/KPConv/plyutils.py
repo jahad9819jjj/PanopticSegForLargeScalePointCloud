@@ -115,7 +115,9 @@ def parse_mesh_header(plyfile, ext):
     return num_points, num_faces, vertex_properties
 
 
-def read_ply(filename, triangular_mesh=False):
+def read_ply(filename, 
+             ply_format='treeins',
+             triangular_mesh=False):
     """
     Read ".ply" files
     Parameters
